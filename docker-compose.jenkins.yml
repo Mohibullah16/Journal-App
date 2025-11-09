@@ -1,10 +1,8 @@
-version: '3.8'
-
 services:
   # MongoDB Service
   mongodb-jenkins:
     image: mongo:latest
-    container_name: mongodb-jenkins-container
+    container_name: mongodb-jenkins-ci
     ports:
       - "27018:27017"
     environment:
@@ -16,27 +14,35 @@ services:
     networks:
       - journal-jenkins-network
     restart: unless-stopped
+    command: mongod --auth
 
   # Journal App Service
   journal-app-jenkins:
-    image: node:18-alpine
-    container_name: journal-app-jenkins-container
-    working_dir: /app
-    command: sh -c "npm install && npm start"
+    image: python:3.11-slim  # Use base Python image instead of building
+    container_name: journal-app-jenkins-ci
     ports:
-      - "3001:3000"
+      - "3001:8000"
     environment:
-      - NODE_ENV=production
-      - MONGODB_URI=mongodb://admin:secret@mongodb-jenkins:27017/journaldb?authSource=admin
-      - PORT=3000
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+      - PORT=8000
+      - MONGODB_URL=mongodb://admin:secret@mongodb-jenkins:27017/journaldb?authSource=admin
+      - SECRET_KEY=change-this-secret-key-in-production-jenkins
     volumes:
-      - ./:/app
-      - /app/node_modules
+      - .:/app  # Mount the code directory as a volume
+    working_dir: /app
+    command: sh -c "pip install --no-cache-dir -r requirements.txt && uvicorn application.server:app --host 0.0.0.0 --port 8000"
     networks:
       - journal-jenkins-network
     depends_on:
       - mongodb-jenkins
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
 volumes:
   mongodb-jenkins-data:

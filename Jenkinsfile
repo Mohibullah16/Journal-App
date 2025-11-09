@@ -3,116 +3,108 @@ pipeline {
     
     environment {
         DOCKER_COMPOSE_FILE = 'docker-compose.jenkins.yml'
-        GIT_REPO = 'https://github.com/Mohibullah16/Journal-App.git'
-        APP_NAME = 'journal-app-jenkins'
+        APP_PORT = '3001'
     }
     
     stages {
-        stage('Checkout') {
+        stage('📥 Checkout Code') {
             steps {
                 script {
                     echo '📥 Checking out code from GitHub...'
-                    checkout scm
+                    // Git checkout happens automatically with pipeline
+                    sh 'ls -la'
                 }
             }
         }
         
-        stage('Environment Setup') {
+        stage('🧹 Cleanup') {
             steps {
                 script {
-                    echo '🔧 Setting up environment...'
-                    sh '''
-                        echo "Node version:"
-                        node --version || echo "Node not installed on host"
-                        echo "Docker version:"
-                        docker --version
-                        echo "Docker Compose version:"
-                        docker-compose --version
-                    '''
-                }
-            }
-        }
-        
-        stage('Cleanup Previous Containers') {
-            steps {
-                script {
-                    echo '🧹 Cleaning up previous containers...'
-                    sh '''
+                    echo '🧹 Cleaning up existing containers...'
+                    sh """
                         docker-compose -f ${DOCKER_COMPOSE_FILE} down -v || true
                         docker system prune -f || true
-                    '''
+                    """
                 }
             }
         }
         
-        stage('Build Application') {
+        stage('🏗️ Build and Deploy with Docker Compose') {
             steps {
                 script {
-                    echo '🏗️ Building application with Docker Compose...'
-                    sh '''
-                        docker-compose -f ${DOCKER_COMPOSE_FILE} up -d --build
-                        echo "Waiting for services to be healthy..."
-                        sleep 15
-                    '''
+                    echo '🏗️ Building and starting containers...'
+                    sh """
+                        docker-compose -f ${DOCKER_COMPOSE_FILE} up -d
+                    """
                 }
             }
         }
         
-        stage('Verify Deployment') {
+        stage('⏳ Wait for Application') {
             steps {
                 script {
-                    echo '✅ Verifying deployment...'
-                    sh '''
-                        echo "Checking running containers:"
-                        docker-compose -f ${DOCKER_COMPOSE_FILE} ps
+                    echo '⏳ Waiting for application to be ready...'
+                    sh """
+                        echo "Waiting for containers to start..."
+                        sleep 10
                         
-                        echo "\nChecking MongoDB connection:"
-                        docker exec mongodb-jenkins-container mongosh --eval "db.version()" --quiet || echo "MongoDB check failed"
-                        
-                        echo "\nChecking application logs:"
+                        echo "Checking application logs:"
                         docker-compose -f ${DOCKER_COMPOSE_FILE} logs --tail=50 journal-app-jenkins
                         
-                        echo "\nTesting application endpoint:"
-                        sleep 5
-                        curl -f http://localhost:3001 || echo "Application not responding yet"
-                    '''
+                        echo "Testing application endpoint:"
+                        for i in 1 2 3 4 5; do
+                            if curl -f http://localhost:${APP_PORT}; then
+                                echo "Application is responding!"
+                                exit 0
+                            fi
+                            echo "Attempt \$i failed, waiting..."
+                            sleep 5
+                        done
+                        echo "Application not responding after 5 attempts"
+                        exit 1
+                    """
                 }
             }
         }
         
-        stage('Run Tests') {
+        stage('🧪 Run Tests') {
             steps {
                 script {
                     echo '🧪 Running tests...'
-                    sh '''
-                        docker exec journal-app-jenkins-container sh -c "npm test || echo 'No tests defined'"
-                    '''
+                    sh """
+                        docker exec journal-app-jenkins-ci sh -c "python -m pytest tests/ || echo 'No tests defined'"
+                    """
+                }
+            }
+        }
+        
+        stage('✅ Verify Deployment') {
+            steps {
+                script {
+                    echo '✅ Verifying deployment...'
+                    sh """
+                        docker-compose -f ${DOCKER_COMPOSE_FILE} ps
+                        curl -I http://localhost:${APP_PORT}
+                    """
                 }
             }
         }
     }
     
     post {
+        always {
+            echo '🔍 Pipeline execution completed'
+        }
         success {
-            echo '✅ Pipeline completed successfully!'
-            echo '🌐 Application is running at http://localhost:3001'
-            sh '''
-                echo "\n=== Deployment Summary ==="
-                docker-compose -f ${DOCKER_COMPOSE_FILE} ps
-                echo "\n=== Application URL ==="
-                echo "Journal App: http://localhost:3001"
-                echo "MongoDB: localhost:27018"
-            '''
+            echo '✅ Pipeline succeeded!'
+            echo "🌐 Application is running at: http://localhost:${APP_PORT}"
         }
         failure {
             echo '❌ Pipeline failed!'
-            sh '''
+            sh """
                 echo "Container logs:"
                 docker-compose -f ${DOCKER_COMPOSE_FILE} logs --tail=100
-            '''
-        }
-        always {
-            echo '🔍 Pipeline execution completed'
+            """
         }
     }
 }
