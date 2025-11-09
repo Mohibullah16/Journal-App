@@ -3,7 +3,7 @@ pipeline {
     
     environment {
         DOCKER_COMPOSE_FILE = 'docker-compose.jenkins.yml'
-        GIT_REPO = 'https://github.com/YOUR_USERNAME/Journal-App.git'
+        GIT_REPO = 'https://github.com/Mohibullah16/Journal-App.git'
         APP_NAME = 'journal-app-jenkins'
     }
     
