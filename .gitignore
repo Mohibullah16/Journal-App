@@ -53,8 +53,3 @@ Thumbs.db
 .ebignore
 Procfile
 
-# Docker (not needed in repo - will create on EC2)
-Dockerfile
-docker-compose.yml
-.dockerignore
-
