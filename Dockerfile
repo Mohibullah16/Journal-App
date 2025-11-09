@@ -4,10 +4,12 @@ FROM python:3.11-slim
 # Set working directory
 WORKDIR /app
 
-# Set environment variables
+# Set environment variables with defaults
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PORT=8000
+    PORT=8000 \
+    MONGODB_URL=mongodb://admin:admin123@mongodb:27017 \
+    SECRET_KEY=change-this-secret-key-in-production
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \

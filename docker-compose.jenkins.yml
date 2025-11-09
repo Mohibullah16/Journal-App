@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # MongoDB Service
+  mongodb-jenkins:
+    image: mongo:latest
+    container_name: mongodb-jenkins-container
+    ports:
+      - "27018:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: secret
+      MONGO_INITDB_DATABASE: journaldb
+    volumes:
+      - mongodb-jenkins-data:/data/db
+    networks:
+      - journal-jenkins-network
+    restart: unless-stopped
+
+  # Journal App Service
+  journal-app-jenkins:
+    image: node:18-alpine
+    container_name: journal-app-jenkins-container
+    working_dir: /app
+    command: sh -c "npm install && npm start"
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://admin:secret@mongodb-jenkins:27017/journaldb?authSource=admin
+      - PORT=3000
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    networks:
+      - journal-jenkins-network
+    depends_on:
+      - mongodb-jenkins
+    restart: unless-stopped
+
+volumes:
+  mongodb-jenkins-data:
+    driver: local
+
+networks:
+  journal-jenkins-network:
+    driver: bridge
