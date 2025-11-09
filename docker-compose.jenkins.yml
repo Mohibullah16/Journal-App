@@ -31,7 +31,7 @@ services:
     volumes:
       - .:/app  # Mount the code directory as a volume
     working_dir: /app
-    command: sh -c "pip install --no-cache-dir -r requirements.txt && uvicorn application.server:app --host 0.0.0.0 --port 8000"
+    command: sh -c "apt-get update && apt-get install -y curl && pip install --no-cache-dir -r requirements.txt && uvicorn application:application --host 0.0.0.0 --port 8000"
     networks:
       - journal-jenkins-network
     depends_on:
