@@ -1,4 +1,4 @@
-# Docker Files Reference - To Create on EC2
+ # Docker Files Reference - To Create on EC2
 
 ## These files will be created DIRECTLY on your EC2 instance after cloning from GitHub
 
